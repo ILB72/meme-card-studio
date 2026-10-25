@@ -1,0 +1,40 @@
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 24px;
+  background: #f5f5f5;
+  color: #222;
+}
+h1 { font-size: 20px; margin: 0 0 16px; }
+main {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+#preview {
+  border: 1px solid #ccc;
+  background: #222;
+  max-width: 480px;
+  width: 100%;
+  height: auto;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 280px;
+}
+.panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+.error {
+  color: #c00;
+  font-size: 13px;
+  min-height: 18px;
+  margin: 0;
+}
