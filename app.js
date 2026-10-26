@@ -194,7 +194,6 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    // ★ UI 인라인 수정 함수 호출
     editBtn.onclick = () => startInlineEdit(t.id, nameRow, btnGroup, t.name);
 
     const delBtn = document.createElement("button");
@@ -287,9 +286,8 @@ function loadTemplate(id) {
   img.src = t.image;
 }
 
-// 3. 수정 (UI 인라인 수정 시작)
+// 3. 수정 (UI 인라인 수정)
 function startInlineEdit(id, nameRow, btnGroup, currentName) {
-  // 화면을 입력창으로 변경
   nameRow.innerHTML = "";
   btnGroup.innerHTML = "";
 
@@ -310,12 +308,10 @@ function startInlineEdit(id, nameRow, btnGroup, currentName) {
   btnGroup.appendChild(saveBtn);
   btnGroup.appendChild(cancelBtn);
 
-  // 저장 버튼 클릭 시 (여기서 덮어쓰기 여부를 물어봄)
   saveBtn.onclick = () => {
     const newName = input.value.trim();
     if (!newName) return alert("이름을 입력해주세요.");
     
-    // 팝업 순서: 이름 입력 후 -> 덮어쓰기 여부 확인
     const overwrite = confirm("이름을 변경합니다. 현재 화면의 상태(이미지, 글씨, 위치)도 이 템플릿에 덮어쓰시겠습니까?\n(취소를 누르면 이름만 변경됩니다.)");
     
     updateTemplateData(id, newName, overwrite);
@@ -326,7 +322,7 @@ function startInlineEdit(id, nameRow, btnGroup, currentName) {
   };
 }
 
-// 4. 실제 데이터 저장
+// 4. 실제 데이터 저장 (수정 완료)
 function updateTemplateData(id, newName, overwriteState) {
   let templates = getTemplates();
   
@@ -334,7 +330,6 @@ function updateTemplateData(id, newName, overwriteState) {
     if (t.id === id) {
       let updatedData = { ...t, name: newName };
       
-      // 덮어쓰기를 선택했고, 현재 화면에 이미지가 있으면 상태 업데이트
       if (overwriteState && state.image) {
         const tempCanvas = document.createElement("canvas");
         const tempCtx = tempCanvas.getContext("2d");
@@ -380,6 +375,60 @@ function deleteTemplate(id) {
     alert("삭제 내용을 저장하는 중 오류가 발생했습니다.");
   }
 }
+
+// ==========================================
+// ★ 카드 5: JSON 내보내기 및 가져오기
+// ==========================================
+
+document.getElementById("exportJsonBtn").addEventListener("click", () => {
+  const templates = getTemplates();
+  if (templates.length === 0) return alert("내보낼 템플릿이 없습니다.");
+  
+  const jsonStr = JSON.stringify(templates, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "templates_backup.json";
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importJsonBtn").addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        
+        // ★ 검증 로직: 배열인지 확인 및 필수 항목 누락 확인
+        if (!Array.isArray(imported)) throw new Error("배열 형식이 아닙니다.");
+        imported.forEach(t => {
+          if (!t.name || t.text === undefined || !t.image) {
+            throw new Error("필수 항목(name, text, image)이 누락되었습니다.");
+          }
+        });
+        
+        // 검증 통과 시에만 기존 목록에 병합 저장
+        const current = getTemplates();
+        const merged = [...current, ...imported];
+        saveTemplates(merged);
+        renderTemplateList();
+        alert("JSON이 성공적으로 복원되었습니다.");
+      } catch (err) {
+        // 실패 시 기존 템플릿 유지
+        alert("올바르지 않은 JSON 파일입니다: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+});
 
 // 초기화
 render();
