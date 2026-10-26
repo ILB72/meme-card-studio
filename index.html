@@ -9,7 +9,20 @@
 <body>
   <h1>짤·카드 스튜디오</h1>
   <main>
-    <canvas id="preview" width="1080" height="1080"></canvas>
+    <div class="canvas-area">
+      <!-- 비율 선택 버튼 -->
+      <div class="ratio-buttons">
+        <button id="btn1x1" class="active">1:1</button>
+        <button id="btn4x5">4:5</button>
+        <button id="btn9x16">9:16</button>
+      </div>
+      
+      <!-- 미리보기 캔버스 -->
+      <canvas id="preview" width="1080" height="1080"></canvas>
+      
+      <!-- 다운로드 버튼 -->
+      <button id="downloadBtn">이미지 다운로드 (PNG)</button>
+    </div>
 
     <section class="panel">
       <label>이미지 불러오기 (PNG / JPEG)
