@@ -190,7 +190,7 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    // ★ 변경된 부분: 이름을 묻지 않고 현재 화면 상태로 덮어씁니다.
+    // ★ 함수 이름을 updateTemplate로 확실하게 변경
     editBtn.onclick = () => updateTemplate(t.id);
 
     const delBtn = document.createElement("button");
@@ -282,7 +282,7 @@ function loadTemplate(id) {
   img.src = t.image;
 }
 
-// 3. 수정 (Update) - 현재 화면의 데이터로 덮어쓰기
+// 3. 수정 (Update) - 현재 화면 데이터로 덮어쓰기
 function updateTemplate(id) {
   if (!state.image) return alert("이미지를 불러온 상태에서만 수정할 수 있습니다.");
   if (!confirm("현재 화면의 상태(이미지, 글씨, 위치 등)로 이 템플릿을 덮어쓰시겠습니까?")) return;
@@ -299,7 +299,7 @@ function updateTemplate(id) {
   
   const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7);
 
-  // ID를 찾아 현재 state 값으로 덮어쓰기
+  // 찾은 ID에 현재 state 덮어쓰기
   templates = templates.map(t => {
     if (t.id === id) {
       return { 
