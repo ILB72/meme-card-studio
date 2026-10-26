@@ -206,7 +206,7 @@ function renderTemplateList() {
   });
 }
 
-// 1. 저장 (Create) - 이미지 압축 및 용량 초과 방어 로직
+// 1. 저장 (Create) - ★ 배경 이미지와 텍스트 분리 저장
 saveTemplateBtn.addEventListener("click", () => {
   const name = templateNameInput.value.trim();
   if (!name) return alert("템플릿 이름을 입력해주세요.");
@@ -214,14 +214,17 @@ saveTemplateBtn.addEventListener("click", () => {
 
   const templates = getTemplates();
   
-  // 저장 용량을 줄이기 위해 임시 캔버스를 만들어 최대 800px로 축소 저장
+  // 화면 전체(글씨 포함)가 아닌, 사용자가 올린 '원본 이미지'만 축소해서 저장합니다.
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
+  
   const maxThumbSize = 800; 
-  const scale = Math.min(maxThumbSize / canvas.width, maxThumbSize / canvas.height);
-  tempCanvas.width = canvas.width * scale;
-  tempCanvas.height = canvas.height * scale;
-  tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+  const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
+  tempCanvas.width = state.image.width * scale;
+  tempCanvas.height = state.image.height * scale;
+  
+  // 원본 이미지만 그리기 (텍스트 제외)
+  tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
   
   // 용량이 훨씬 적은 JPEG로 변환 (화질 0.7)
   const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7); 
@@ -229,8 +232,8 @@ saveTemplateBtn.addEventListener("click", () => {
   const newTemplate = {
     id: crypto.randomUUID(),
     name: name,
-    image: imageDataURL,
-    text: state.text,
+    image: imageDataURL, // 배경 이미지만 저장
+    text: state.text,    // 텍스트 데이터는 따로 저장
     x: state.x,
     y: state.y,
     fontSize: state.fontSize,
@@ -240,7 +243,6 @@ saveTemplateBtn.addEventListener("click", () => {
 
   templates.push(newTemplate);
   
-  // 저장 시도 및 용량 초과 에러 처리
   try {
     saveTemplates(templates);
     templateNameInput.value = ""; 
@@ -263,6 +265,7 @@ function loadTemplate(id) {
   const t = templates.find(item => item.id === id);
   if (!t) return;
 
+  // 텍스트 및 스타일 상태 복원
   state.text = t.text;
   state.x = t.x;
   state.y = t.y;
@@ -270,16 +273,19 @@ function loadTemplate(id) {
   state.color = t.color;
   state.ratio = t.ratio;
 
+  // UI 입력값 복원
   textInput.value = t.text;
   xInput.value = t.x;
   yInput.value = t.y;
   sizeInput.value = t.fontSize;
   colorInput.value = t.color;
 
+  // 비율 버튼 상태 복원
   if (t.ratio === "1:1") changeRatio(1080, 1080, "1:1", btn1x1);
   else if (t.ratio === "4:5") changeRatio(1080, 1350, "4:5", btn4x5);
   else if (t.ratio === "9:16") changeRatio(1080, 1920, "9:16", btn9x16);
 
+  // 배경 이미지 복원 후 렌더링 (텍스트가 새로 그려짐)
   const img = new Image();
   img.onload = () => {
     state.image = img;
