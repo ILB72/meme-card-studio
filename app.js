@@ -175,7 +175,6 @@ function renderTemplateList() {
     const li = document.createElement("li");
     li.style.cssText = "display: flex; flex-direction: column; gap: 8px; background: white; border: 1px solid #ddd; padding: 8px; border-radius: 4px;";
     
-    // 이름 표시 영역
     const nameRow = document.createElement("div");
     nameRow.style.cssText = "display: flex; gap: 8px; align-items: center;";
     
@@ -184,7 +183,6 @@ function renderTemplateList() {
     nameSpan.style.cssText = "font-size: 14px; font-weight: bold; flex: 1; word-break: break-all;";
     nameRow.appendChild(nameSpan);
 
-    // 버튼 그룹
     const btnGroup = document.createElement("div");
     btnGroup.style.cssText = "display: flex; gap: 4px;";
 
@@ -196,7 +194,8 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    editBtn.onclick = () => editTemplateInline(t.id, nameRow, btnGroup, t.name);
+    // ★ UI 인라인 수정 함수 호출
+    editBtn.onclick = () => startInlineEdit(t.id, nameRow, btnGroup, t.name);
 
     const delBtn = document.createElement("button");
     delBtn.textContent = "삭제";
@@ -288,18 +287,17 @@ function loadTemplate(id) {
   img.src = t.image;
 }
 
-// 3. 수정 (Update) - UI 변경 및 덮어쓰기
-function editTemplateInline(id, nameRow, btnGroup, currentName) {
+// 3. 수정 (UI 인라인 수정 시작)
+function startInlineEdit(id, nameRow, btnGroup, currentName) {
+  // 화면을 입력창으로 변경
   nameRow.innerHTML = "";
   btnGroup.innerHTML = "";
 
-  // 이름 입력창 생성
   const input = document.createElement("input");
   input.type = "text";
   input.value = currentName;
   input.style.cssText = "flex: 1; padding: 4px; font-size: 14px;";
 
-  // 저장 및 취소 버튼 생성
   const saveBtn = document.createElement("button");
   saveBtn.textContent = "저장";
   saveBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px;";
@@ -312,31 +310,31 @@ function editTemplateInline(id, nameRow, btnGroup, currentName) {
   btnGroup.appendChild(saveBtn);
   btnGroup.appendChild(cancelBtn);
 
-  // 저장 버튼 클릭 시
+  // 저장 버튼 클릭 시 (여기서 덮어쓰기 여부를 물어봄)
   saveBtn.onclick = () => {
     const newName = input.value.trim();
     if (!newName) return alert("이름을 입력해주세요.");
     
-    const overwrite = confirm("이름을 변경했습니다. 현재 화면의 상태(이미지, 글씨 위치)도 이 템플릿에 덮어쓰시겠습니까?\n(취소를 누르면 이름만 변경됩니다.)");
+    // 팝업 순서: 이름 입력 후 -> 덮어쓰기 여부 확인
+    const overwrite = confirm("이름을 변경합니다. 현재 화면의 상태(이미지, 글씨, 위치)도 이 템플릿에 덮어쓰시겠습니까?\n(취소를 누르면 이름만 변경됩니다.)");
     
-    updateTemplate(id, newName, overwrite);
+    updateTemplateData(id, newName, overwrite);
   };
 
-  // 취소 버튼 클릭 시 원상복구
   cancelBtn.onclick = () => {
     renderTemplateList();
   };
 }
 
-// 실제 데이터 업데이트 함수
-function updateTemplate(id, newName, overwriteState) {
+// 4. 실제 데이터 저장
+function updateTemplateData(id, newName, overwriteState) {
   let templates = getTemplates();
   
   let updatedTemplates = templates.map(t => {
     if (t.id === id) {
       let updatedData = { ...t, name: newName };
       
-      // 덮어쓰기를 선택한 경우 현재 화면의 이미지/텍스트 상태도 업데이트
+      // 덮어쓰기를 선택했고, 현재 화면에 이미지가 있으면 상태 업데이트
       if (overwriteState && state.image) {
         const tempCanvas = document.createElement("canvas");
         const tempCtx = tempCanvas.getContext("2d");
@@ -368,7 +366,7 @@ function updateTemplate(id, newName, overwriteState) {
   }
 }
 
-// 4. 삭제 (Delete)
+// 5. 삭제 (Delete)
 function deleteTemplate(id) {
   if (!confirm("정말 이 템플릿을 삭제하시겠습니까?")) return;
   
