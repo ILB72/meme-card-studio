@@ -201,17 +201,28 @@ function renderTemplateList() {
   });
 }
 
-// 1. 저장 (Create)
+// 1. 저장 (Create) - 이미지 압축 및 용량 초과 방어 로직 추가
 saveTemplateBtn.addEventListener("click", () => {
   const name = templateNameInput.value.trim();
   if (!name) return alert("템플릿 이름을 입력해주세요.");
   if (!state.image) return alert("이미지를 먼저 불러와주세요.");
 
   const templates = getTemplates();
-  const imageDataURL = canvas.toDataURL("image/png"); 
+  
+  // ★ 저장 용량을 줄이기 위해 임시 캔버스를 만들어 최대 800px로 축소 저장
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  const maxThumbSize = 800; 
+  const scale = Math.min(maxThumbSize / canvas.width, maxThumbSize / canvas.height);
+  tempCanvas.width = canvas.width * scale;
+  tempCanvas.height = canvas.height * scale;
+  tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+  
+  // 용량이 훨씬 적은 JPEG로 변환 (화질 0.7)
+  const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7); 
 
   const newTemplate = {
-    id: crypto.randomUUID(), // 안정된 고유 ID
+    id: crypto.randomUUID(),
     name: name,
     image: imageDataURL,
     text: state.text,
@@ -223,10 +234,23 @@ saveTemplateBtn.addEventListener("click", () => {
   };
 
   templates.push(newTemplate);
-  saveTemplates(templates);
   
-  templateNameInput.value = ""; 
-  renderTemplateList(); 
+  // ★ 저장 시도 및 용량 초과 에러 처리
+  try {
+    saveTemplates(templates);
+    templateNameInput.value = ""; 
+    renderTemplateList(); 
+    alert("템플릿이 저장되었습니다.");
+  } catch (error) {
+    console.error("저장 실패:", error);
+    if (error.name === 'QuotaExceededError' || error.code === 22) {
+      alert("브라우저 저장 공간(5MB)이 부족합니다.\n기존 템플릿을 몇 개 삭제한 후 다시 시도해주세요.");
+    } else {
+      alert("템플릿 저장 중 알 수 없는 오류가 발생했습니다.");
+    }
+    // 저장에 실패했으므로 메모리에 있던 방금 추가한 템플릿을 다시 빼줍니다.
+    templates.pop(); 
+  }
 });
 
 // 2. 불러오기 (Read)
@@ -271,8 +295,12 @@ function editTemplate(id, oldName) {
     return t;
   });
 
-  saveTemplates(templates);
-  renderTemplateList();
+  try {
+    saveTemplates(templates);
+    renderTemplateList();
+  } catch (error) {
+    alert("수정 내용을 저장하는 중 오류가 발생했습니다.");
+  }
 }
 
 // 4. 삭제 (Delete)
@@ -282,8 +310,12 @@ function deleteTemplate(id) {
   let templates = getTemplates();
   templates = templates.filter(t => t.id !== id);
   
-  saveTemplates(templates);
-  renderTemplateList();
+  try {
+    saveTemplates(templates);
+    renderTemplateList();
+  } catch (error) {
+    alert("삭제 내용을 저장하는 중 오류가 발생했습니다.");
+  }
 }
 
 // 초기화
