@@ -64,22 +64,16 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-// ★ 수정된 렌더링 함수 (안전하게 전체 지우기)
 function render() {
   try {
-    // 캔버스 전체를 깔끔하게 지웁니다.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 배경색 채우기
     ctx.fillStyle = "#222";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 이미지 그리기
     if (state.image) {
       drawImageCover(ctx, state.image, canvas.width, canvas.height);
     }
 
-    // 텍스트 그리기
     if (state.text.trim() !== "") {
       ctx.fillStyle = state.color;
       ctx.font = `bold ${state.fontSize}px "Malgun Gothic", sans-serif`;
@@ -196,7 +190,8 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    editBtn.onclick = () => editTemplate(t.id, t.name);
+    // ★ 변경된 부분: 이름을 묻지 않고 현재 화면 상태로 덮어씁니다.
+    editBtn.onclick = () => updateTemplate(t.id);
 
     const delBtn = document.createElement("button");
     delBtn.textContent = "삭제";
@@ -212,7 +207,7 @@ function renderTemplateList() {
   });
 }
 
-// 1. 저장 (배경 이미지만 저장)
+// 1. 저장 (Create)
 saveTemplateBtn.addEventListener("click", () => {
   const name = templateNameInput.value.trim();
   if (!name) return alert("템플릿 이름을 입력해주세요.");
@@ -222,13 +217,10 @@ saveTemplateBtn.addEventListener("click", () => {
   
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
-  
   const maxThumbSize = 800; 
   const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
   tempCanvas.width = state.image.width * scale;
   tempCanvas.height = state.image.height * scale;
-  
-  // ★ 원본 이미지만 그립니다.
   tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
   
   const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7); 
@@ -259,7 +251,7 @@ saveTemplateBtn.addEventListener("click", () => {
   }
 });
 
-// 2. 불러오기
+// 2. 불러오기 (Read)
 function loadTemplate(id) {
   const templates = getTemplates();
   const t = templates.find(item => item.id === id);
@@ -285,30 +277,55 @@ function loadTemplate(id) {
   const img = new Image();
   img.onload = () => {
     state.image = img;
-    // ★ 여기서 render()가 한 번만 실행되도록 확실하게 보장
     render();
   };
   img.src = t.image;
 }
 
-function editTemplate(id, oldName) {
-  const newName = prompt("새로운 템플릿 이름을 입력하세요.", oldName);
-  if (!newName || newName.trim() === "") return;
+// 3. 수정 (Update) - 현재 화면의 데이터로 덮어쓰기
+function updateTemplate(id) {
+  if (!state.image) return alert("이미지를 불러온 상태에서만 수정할 수 있습니다.");
+  if (!confirm("현재 화면의 상태(이미지, 글씨, 위치 등)로 이 템플릿을 덮어쓰시겠습니까?")) return;
 
   let templates = getTemplates();
+  
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  const maxThumbSize = 800; 
+  const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
+  tempCanvas.width = state.image.width * scale;
+  tempCanvas.height = state.image.height * scale;
+  tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
+  
+  const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7);
+
+  // ID를 찾아 현재 state 값으로 덮어쓰기
   templates = templates.map(t => {
-    if (t.id === id) return { ...t, name: newName.trim() };
+    if (t.id === id) {
+      return { 
+        ...t, 
+        image: imageDataURL,
+        text: state.text,
+        x: state.x,
+        y: state.y,
+        fontSize: state.fontSize,
+        color: state.color,
+        ratio: state.ratio
+      };
+    }
     return t;
   });
 
   try {
     saveTemplates(templates);
     renderTemplateList();
+    alert("현재 화면 상태로 템플릿이 수정되었습니다.");
   } catch (error) {
-    alert("수정 내용을 저장하는 중 오류가 발생했습니다.");
+    alert("수정 내용을 저장하는 중 오류가 발생했습니다. (저장 공간 부족 등)");
   }
 }
 
+// 4. 삭제 (Delete)
 function deleteTemplate(id) {
   if (!confirm("정말 이 템플릿을 삭제하시겠습니까?")) return;
   
