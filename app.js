@@ -146,7 +146,9 @@ downloadBtn.addEventListener("click", () => {
   const link = document.createElement("a");
   link.download = "card_image.png";
   link.href = canvas.toDataURL("image/png");
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 });
 
 // ==========================================
@@ -382,16 +384,24 @@ function deleteTemplate(id) {
 
 document.getElementById("exportJsonBtn").addEventListener("click", () => {
   const templates = getTemplates();
-  if (templates.length === 0) return alert("내보낼 템플릿이 없습니다.");
+  if (templates.length === 0) {
+    return alert("내보낼 템플릿이 없습니다. 먼저 템플릿을 저장해주세요.");
+  }
   
   const jsonStr = JSON.stringify(templates, null, 2);
   const blob = new Blob([jsonStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
+  
   const link = document.createElement("a");
   link.href = url;
   link.download = "templates_backup.json";
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
+  
   URL.revokeObjectURL(url);
+  
+  alert("JSON 파일 다운로드를 시작합니다. (다운로드 폴더 확인)");
 });
 
 document.getElementById("importJsonBtn").addEventListener("click", () => {
@@ -406,7 +416,6 @@ document.getElementById("importJsonBtn").addEventListener("click", () => {
       try {
         const imported = JSON.parse(event.target.result);
         
-        // ★ 검증 로직: 배열인지 확인 및 필수 항목 누락 확인
         if (!Array.isArray(imported)) throw new Error("배열 형식이 아닙니다.");
         imported.forEach(t => {
           if (!t.name || t.text === undefined || !t.image) {
@@ -414,14 +423,12 @@ document.getElementById("importJsonBtn").addEventListener("click", () => {
           }
         });
         
-        // 검증 통과 시에만 기존 목록에 병합 저장
         const current = getTemplates();
         const merged = [...current, ...imported];
         saveTemplates(merged);
         renderTemplateList();
         alert("JSON이 성공적으로 복원되었습니다.");
       } catch (err) {
-        // 실패 시 기존 템플릿 유지
         alert("올바르지 않은 JSON 파일입니다: " + err.message);
       }
     };
