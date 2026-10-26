@@ -190,7 +190,6 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    // ★ 함수 이름을 updateTemplate로 확실하게 변경
     editBtn.onclick = () => updateTemplate(t.id);
 
     const delBtn = document.createElement("button");
@@ -282,13 +281,21 @@ function loadTemplate(id) {
   img.src = t.image;
 }
 
-// 3. 수정 (Update) - 현재 화면 데이터로 덮어쓰기
+// 3. 수정 (Update) - 이름 변경 + 현재 화면 데이터로 덮어쓰기
 function updateTemplate(id) {
-  if (!state.image) return alert("이미지를 불러온 상태에서만 수정할 수 있습니다.");
-  if (!confirm("현재 화면의 상태(이미지, 글씨, 위치 등)로 이 템플릿을 덮어쓰시겠습니까?")) return;
+  const templates = getTemplates();
+  const t = templates.find(item => item.id === id);
+  if (!t) return;
 
-  let templates = getTemplates();
-  
+  // 1단계: 템플릿 이름 수정 팝업
+  const newName = prompt("새로운 템플릿 이름을 입력하세요. (취소하면 이름은 유지됩니다)", t.name);
+  if (newName === null) return; // 취소 누르면 중단
+
+  // 2단계: 현재 화면 상태 덮어쓰기 확인
+  if (!state.image) return alert("이미지를 불러온 상태에서만 수정할 수 있습니다.");
+  if (!confirm("입력한 이름과 함께, 현재 화면의 상태(이미지, 글씨, 위치 등)로 이 템플릿을 덮어쓰시겠습니까?")) return;
+
+  // 이미지 축소 저장 준비
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
   const maxThumbSize = 800; 
@@ -299,11 +306,12 @@ function updateTemplate(id) {
   
   const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7);
 
-  // 찾은 ID에 현재 state 덮어쓰기
-  templates = templates.map(t => {
-    if (t.id === id) {
+  // 데이터 업데이트
+  let updatedTemplates = templates.map(item => {
+    if (item.id === id) {
       return { 
-        ...t, 
+        ...item, 
+        name: newName.trim() !== "" ? newName.trim() : item.name, // 공백이면 기존 이름 유지
         image: imageDataURL,
         text: state.text,
         x: state.x,
@@ -313,13 +321,13 @@ function updateTemplate(id) {
         ratio: state.ratio
       };
     }
-    return t;
+    return item;
   });
 
   try {
-    saveTemplates(templates);
+    saveTemplates(updatedTemplates);
     renderTemplateList();
-    alert("현재 화면 상태로 템플릿이 수정되었습니다.");
+    alert("템플릿의 이름과 화면 상태가 성공적으로 수정되었습니다.");
   } catch (error) {
     alert("수정 내용을 저장하는 중 오류가 발생했습니다. (저장 공간 부족 등)");
   }
