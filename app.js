@@ -1,10 +1,46 @@
-// ★ 1. 글자 단위 줄바꿈 처리 (띄어쓰기가 없어도 무조건 캔버스 안에 들어오게 함)
+const canvas = document.getElementById("preview");
+const ctx = canvas.getContext("2d");
+
+const fileInput = document.getElementById("fileInput");
+const errorMsg = document.getElementById("errorMsg");
+const textInput = document.getElementById("textInput");
+const xInput = document.getElementById("xInput");
+const yInput = document.getElementById("yInput");
+const sizeInput = document.getElementById("sizeInput");
+const colorInput = document.getElementById("colorInput");
+
+const btn1x1 = document.getElementById("btn1x1");
+const btn4x5 = document.getElementById("btn4x5");
+const btn9x16 = document.getElementById("btn9x16");
+const downloadBtn = document.getElementById("downloadBtn");
+
+const state = {
+  image: null,
+  text: textInput.value,
+  x: 0.5,
+  y: 0.5,
+  fontSize: 60,
+  color: "#ffffff",
+};
+
+// 이미지 Cover 함수
+function drawImageCover(ctx, img, cw, ch) {
+  const scale = Math.max(cw / img.width, ch / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const dx = (cw - w) / 2;
+  const dy = (ch - h) / 2;
+  ctx.drawImage(img, dx, dy, w, h);
+}
+
+// ★ 글자 단위 줄바꿈 처리 (띄어쓰기가 없어도 무조건 캔버스 안에 들어오게 함)
 function wrapText(ctx, text, maxWidth) {
   const paragraphs = text.split('\n');
   const lines = [];
 
   for (let p = 0; p < paragraphs.length; p++) {
-    const chars = Array.from(paragraphs[p]); // 이모지/한글을 글자 단위로 쪼갬
+    // 한글, 영문, 이모지 등을 모두 1글자 단위로 쪼갬
+    const chars = Array.from(paragraphs[p]); 
     let currentLine = '';
 
     for (let i = 0; i < chars.length; i++) {
@@ -12,6 +48,7 @@ function wrapText(ctx, text, maxWidth) {
       const testLine = currentLine + char;
       const metrics = ctx.measureText(testLine);
       
+      // 허용 폭을 넘어가면 줄바꿈
       if (metrics.width > maxWidth && currentLine !== '') {
         lines.push(currentLine);
         currentLine = char;
@@ -24,24 +61,22 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-// ★ 2. 렌더링 함수 (이모지 깨짐 방지 및 줄바꿈 적용)
+// 렌더링 함수
 function render() {
   try {
-    // 배경 지우기
+    // 1. 배경 지우기
     ctx.fillStyle = "#222";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 이미지 그리기
+    // 2. 이미지 그리기
     if (state.image) {
       drawImageCover(ctx, state.image, canvas.width, canvas.height);
     }
 
-    // 문구 그리기
+    // 3. 문구 그리기
     if (state.text.trim() !== "") {
       ctx.fillStyle = state.color;
-      
-      // ★ 이모지 깨짐 방지: 폰트를 일반 폰트와 이모지 폰트를 번갈아 쓰도록 설정
-      ctx.font = `bold ${state.fontSize}px "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.font = `bold ${state.fontSize}px "Malgun Gothic", sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
@@ -50,53 +85,97 @@ function render() {
 
       const px = state.x * canvas.width;
       const py = state.y * canvas.height;
+      
       const lineHeight = state.fontSize * 1.2;
       const totalHeight = lines.length * lineHeight;
       const startY = py - (totalHeight / 2) + (lineHeight / 2);
 
+      // 줄바꿈된 각 줄을 그림
       lines.forEach((line, index) => {
-        // ★ 이모지가 섞여 있을 때 안 깨지게 그리는 헬퍼 함수 호출
-        drawMixedText(ctx, line, px, startY + (index * lineHeight));
+        ctx.fillText(line, px, startY + (index * lineHeight));
       });
     }
   } catch (error) {
     console.error("렌더링 오류 발생:", error);
-    errorMsg.textContent = "화면을 그리는 중 오류가 발생했습니다. 입력값을 확인해주세요.";
+    errorMsg.textContent = "화면을 그리는 중 오류가 발생했습니다.";
   }
 }
 
-// ★ 3. 이모지와 일반 텍스트를 안전하게 섞어서 그리는 함수
-function drawMixedText(ctx, text, x, y) {
-  const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
-  const parts = text.split(emojiRegex);
-  
-  // 전체 텍스트의 너비를 계산해서 가운데 정렬 시작점 찾기
-  let totalWidth = 0;
-  const partWidths = parts.map(part => {
-    // 일반 텍스트와 이모지 폰트 적용
-    if (emojiRegex.test(part)) {
-      ctx.font = `bold ${state.fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-    } else {
-      ctx.font = `bold ${state.fontSize}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
-    }
-    const w = ctx.measureText(part).width;
-    totalWidth += w;
-    return w;
-  });
+// --- 이벤트 리스너들 ---
+fileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  errorMsg.textContent = "";
 
-  let currentX = x - (totalWidth / 2);
-  
-  parts.forEach((part, index) => {
-    if (part === '') return;
-    
-    if (emojiRegex.test(part)) {
-      ctx.font = `bold ${state.fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-    } else {
-      ctx.font = `bold ${state.fontSize}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
-    }
-    
-    ctx.textAlign = "left"; // 너비 계산을 위해 왼쪽 정렬로 변경
-    ctx.fillText(part, currentX, y);
-    currentX += partWidths[index];
-  });
+  const okTypes = ["image/png", "image/jpeg"];
+  if (!okTypes.includes(file.type)) {
+    errorMsg.textContent = "PNG 또는 JPEG 이미지만 올릴 수 있습니다.";
+    fileInput.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      state.image = img;
+      render();
+    };
+    img.onerror = () => {
+      errorMsg.textContent = "이미지를 읽을 수 없습니다.";
+    };
+    img.src = reader.result;
+  };
+  reader.onerror = () => {
+    errorMsg.textContent = "파일을 읽는 중 오류가 발생했습니다.";
+  };
+  reader.readAsDataURL(file);
+});
+
+textInput.addEventListener("input", (e) => {
+  state.text = e.target.value;
+  render();
+});
+
+xInput.addEventListener("input", (e) => {
+  state.x = parseFloat(e.target.value);
+  render();
+});
+
+yInput.addEventListener("input", (e) => {
+  state.y = parseFloat(e.target.value);
+  render();
+});
+
+sizeInput.addEventListener("input", (e) => {
+  state.fontSize = parseInt(e.target.value, 10);
+  render();
+});
+
+colorInput.addEventListener("input", (e) => {
+  state.color = e.target.value;
+  render();
+});
+
+function changeRatio(width, height, activeBtn) {
+  canvas.width = width;
+  canvas.height = height;
+  [btn1x1, btn4x5, btn9x16].forEach(btn => btn.classList.remove("active"));
+  activeBtn.classList.add("active");
+  render();
 }
+
+btn1x1.addEventListener("click", () => changeRatio(1080, 1080, btn1x1));
+btn4x5.addEventListener("click", () => changeRatio(1080, 1350, btn4x5));
+btn9x16.addEventListener("click", () => changeRatio(1080, 1920, btn9x16));
+
+downloadBtn.addEventListener("click", () => {
+  render(); 
+  const dataURL = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.download = "card_image.png";
+  link.href = dataURL;
+  link.click();
+});
+
+render();
