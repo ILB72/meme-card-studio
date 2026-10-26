@@ -1,4 +1,4 @@
-// ★ 저장 공간 한도 늘리기 (기본 5MB -> 브라우저 최대 허용치)
+// ★ 저장 공간 한도 늘리기
 if (navigator.storage && navigator.storage.persist) {
   navigator.storage.persist();
 }
@@ -19,7 +19,6 @@ const btn4x5 = document.getElementById("btn4x5");
 const btn9x16 = document.getElementById("btn9x16");
 const downloadBtn = document.getElementById("downloadBtn");
 
-// 템플릿 UI 요소
 const templateNameInput = document.getElementById("templateName");
 const saveTemplateBtn = document.getElementById("saveTemplateBtn");
 const templateList = document.getElementById("templateList");
@@ -65,15 +64,22 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
+// ★ 수정된 렌더링 함수 (안전하게 전체 지우기)
 function render() {
   try {
+    // 캔버스 전체를 깔끔하게 지웁니다.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 배경색 채우기
     ctx.fillStyle = "#222";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // 이미지 그리기
     if (state.image) {
       drawImageCover(ctx, state.image, canvas.width, canvas.height);
     }
 
+    // 텍스트 그리기
     if (state.text.trim() !== "") {
       ctx.fillStyle = state.color;
       ctx.font = `bold ${state.fontSize}px "Malgun Gothic", sans-serif`;
@@ -150,7 +156,7 @@ downloadBtn.addEventListener("click", () => {
 });
 
 // ==========================================
-// ★ 템플릿 관리 로직 (localStorage)
+// ★ 템플릿 관리 로직
 // ==========================================
 
 function getTemplates() {
@@ -206,7 +212,7 @@ function renderTemplateList() {
   });
 }
 
-// 1. 저장 (Create) - ★ 배경 이미지와 텍스트 분리 저장
+// 1. 저장 (배경 이미지만 저장)
 saveTemplateBtn.addEventListener("click", () => {
   const name = templateNameInput.value.trim();
   if (!name) return alert("템플릿 이름을 입력해주세요.");
@@ -214,7 +220,6 @@ saveTemplateBtn.addEventListener("click", () => {
 
   const templates = getTemplates();
   
-  // 화면 전체(글씨 포함)가 아닌, 사용자가 올린 '원본 이미지'만 축소해서 저장합니다.
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
   
@@ -223,17 +228,16 @@ saveTemplateBtn.addEventListener("click", () => {
   tempCanvas.width = state.image.width * scale;
   tempCanvas.height = state.image.height * scale;
   
-  // 원본 이미지만 그리기 (텍스트 제외)
+  // ★ 원본 이미지만 그립니다.
   tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
   
-  // 용량이 훨씬 적은 JPEG로 변환 (화질 0.7)
   const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7); 
 
   const newTemplate = {
     id: crypto.randomUUID(),
     name: name,
-    image: imageDataURL, // 배경 이미지만 저장
-    text: state.text,    // 텍스트 데이터는 따로 저장
+    image: imageDataURL,
+    text: state.text,
     x: state.x,
     y: state.y,
     fontSize: state.fontSize,
@@ -250,22 +254,17 @@ saveTemplateBtn.addEventListener("click", () => {
     alert("템플릿이 저장되었습니다.");
   } catch (error) {
     console.error("저장 실패:", error);
-    if (error.name === 'QuotaExceededError' || error.code === 22) {
-      alert("브라우저 저장 공간이 부족합니다.\n기존 템플릿을 몇 개 삭제한 후 다시 시도해주세요.");
-    } else {
-      alert("템플릿 저장 중 알 수 없는 오류가 발생했습니다.");
-    }
+    alert("저장 공간이 부족합니다.");
     templates.pop(); 
   }
 });
 
-// 2. 불러오기 (Read)
+// 2. 불러오기
 function loadTemplate(id) {
   const templates = getTemplates();
   const t = templates.find(item => item.id === id);
   if (!t) return;
 
-  // 텍스트 및 스타일 상태 복원
   state.text = t.text;
   state.x = t.x;
   state.y = t.y;
@@ -273,28 +272,25 @@ function loadTemplate(id) {
   state.color = t.color;
   state.ratio = t.ratio;
 
-  // UI 입력값 복원
   textInput.value = t.text;
   xInput.value = t.x;
   yInput.value = t.y;
   sizeInput.value = t.fontSize;
   colorInput.value = t.color;
 
-  // 비율 버튼 상태 복원
   if (t.ratio === "1:1") changeRatio(1080, 1080, "1:1", btn1x1);
   else if (t.ratio === "4:5") changeRatio(1080, 1350, "4:5", btn4x5);
   else if (t.ratio === "9:16") changeRatio(1080, 1920, "9:16", btn9x16);
 
-  // 배경 이미지 복원 후 렌더링 (텍스트가 새로 그려짐)
   const img = new Image();
   img.onload = () => {
     state.image = img;
+    // ★ 여기서 render()가 한 번만 실행되도록 확실하게 보장
     render();
   };
   img.src = t.image;
 }
 
-// 3. 수정 (Update) - 이름 변경
 function editTemplate(id, oldName) {
   const newName = prompt("새로운 템플릿 이름을 입력하세요.", oldName);
   if (!newName || newName.trim() === "") return;
@@ -313,7 +309,6 @@ function editTemplate(id, oldName) {
   }
 }
 
-// 4. 삭제 (Delete)
 function deleteTemplate(id) {
   if (!confirm("정말 이 템플릿을 삭제하시겠습니까?")) return;
   
