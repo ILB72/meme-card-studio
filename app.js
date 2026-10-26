@@ -173,14 +173,20 @@ function renderTemplateList() {
 
   templates.forEach(t => {
     const li = document.createElement("li");
-    li.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid #ddd; padding: 8px; border-radius: 4px;";
+    li.style.cssText = "display: flex; flex-direction: column; gap: 8px; background: white; border: 1px solid #ddd; padding: 8px; border-radius: 4px;";
+    
+    // 이름 표시 영역
+    const nameRow = document.createElement("div");
+    nameRow.style.cssText = "display: flex; gap: 8px; align-items: center;";
     
     const nameSpan = document.createElement("span");
     nameSpan.textContent = t.name;
-    nameSpan.style.cssText = "font-size: 14px; cursor: pointer; flex: 1; word-break: break-all;";
-    
+    nameSpan.style.cssText = "font-size: 14px; font-weight: bold; flex: 1; word-break: break-all;";
+    nameRow.appendChild(nameSpan);
+
+    // 버튼 그룹
     const btnGroup = document.createElement("div");
-    btnGroup.style.cssText = "display: flex; gap: 4px; flex-shrink: 0;";
+    btnGroup.style.cssText = "display: flex; gap: 4px;";
 
     const loadBtn = document.createElement("button");
     loadBtn.textContent = "불러오기";
@@ -190,7 +196,7 @@ function renderTemplateList() {
     const editBtn = document.createElement("button");
     editBtn.textContent = "수정";
     editBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer;";
-    editBtn.onclick = () => updateTemplate(t.id);
+    editBtn.onclick = () => editTemplateInline(t.id, nameRow, btnGroup, t.name);
 
     const delBtn = document.createElement("button");
     delBtn.textContent = "삭제";
@@ -200,7 +206,8 @@ function renderTemplateList() {
     btnGroup.appendChild(loadBtn);
     btnGroup.appendChild(editBtn);
     btnGroup.appendChild(delBtn);
-    li.appendChild(nameSpan);
+    
+    li.appendChild(nameRow);
     li.appendChild(btnGroup);
     templateList.appendChild(li);
   });
@@ -281,55 +288,83 @@ function loadTemplate(id) {
   img.src = t.image;
 }
 
-// 3. 수정 (Update) - 이름 변경 + 현재 화면 데이터로 덮어쓰기
-function updateTemplate(id) {
-  const templates = getTemplates();
-  const t = templates.find(item => item.id === id);
-  if (!t) return;
+// 3. 수정 (Update) - UI 변경 및 덮어쓰기
+function editTemplateInline(id, nameRow, btnGroup, currentName) {
+  nameRow.innerHTML = "";
+  btnGroup.innerHTML = "";
 
-  // 1단계: 템플릿 이름 수정 팝업
-  const newName = prompt("새로운 템플릿 이름을 입력하세요. (취소하면 이름은 유지됩니다)", t.name);
-  if (newName === null) return; // 취소 누르면 중단
+  // 이름 입력창 생성
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = currentName;
+  input.style.cssText = "flex: 1; padding: 4px; font-size: 14px;";
 
-  // 2단계: 현재 화면 상태 덮어쓰기 확인
-  if (!state.image) return alert("이미지를 불러온 상태에서만 수정할 수 있습니다.");
-  if (!confirm("입력한 이름과 함께, 현재 화면의 상태(이미지, 글씨, 위치 등)로 이 템플릿을 덮어쓰시겠습니까?")) return;
-
-  // 이미지 축소 저장 준비
-  const tempCanvas = document.createElement("canvas");
-  const tempCtx = tempCanvas.getContext("2d");
-  const maxThumbSize = 800; 
-  const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
-  tempCanvas.width = state.image.width * scale;
-  tempCanvas.height = state.image.height * scale;
-  tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
+  // 저장 및 취소 버튼 생성
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "저장";
+  saveBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px;";
   
-  const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7);
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "취소";
+  cancelBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer; background: #ccc; color: #333; border: none; border-radius: 4px;";
 
-  // 데이터 업데이트
-  let updatedTemplates = templates.map(item => {
-    if (item.id === id) {
-      return { 
-        ...item, 
-        name: newName.trim() !== "" ? newName.trim() : item.name, // 공백이면 기존 이름 유지
-        image: imageDataURL,
-        text: state.text,
-        x: state.x,
-        y: state.y,
-        fontSize: state.fontSize,
-        color: state.color,
-        ratio: state.ratio
-      };
+  nameRow.appendChild(input);
+  btnGroup.appendChild(saveBtn);
+  btnGroup.appendChild(cancelBtn);
+
+  // 저장 버튼 클릭 시
+  saveBtn.onclick = () => {
+    const newName = input.value.trim();
+    if (!newName) return alert("이름을 입력해주세요.");
+    
+    const overwrite = confirm("이름을 변경했습니다. 현재 화면의 상태(이미지, 글씨 위치)도 이 템플릿에 덮어쓰시겠습니까?\n(취소를 누르면 이름만 변경됩니다.)");
+    
+    updateTemplate(id, newName, overwrite);
+  };
+
+  // 취소 버튼 클릭 시 원상복구
+  cancelBtn.onclick = () => {
+    renderTemplateList();
+  };
+}
+
+// 실제 데이터 업데이트 함수
+function updateTemplate(id, newName, overwriteState) {
+  let templates = getTemplates();
+  
+  let updatedTemplates = templates.map(t => {
+    if (t.id === id) {
+      let updatedData = { ...t, name: newName };
+      
+      // 덮어쓰기를 선택한 경우 현재 화면의 이미지/텍스트 상태도 업데이트
+      if (overwriteState && state.image) {
+        const tempCanvas = document.createElement("canvas");
+        const tempCtx = tempCanvas.getContext("2d");
+        const maxThumbSize = 800; 
+        const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
+        tempCanvas.width = state.image.width * scale;
+        tempCanvas.height = state.image.height * scale;
+        tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        updatedData.image = tempCanvas.toDataURL("image/jpeg", 0.7);
+        updatedData.text = state.text;
+        updatedData.x = state.x;
+        updatedData.y = state.y;
+        updatedData.fontSize = state.fontSize;
+        updatedData.color = state.color;
+        updatedData.ratio = state.ratio;
+      }
+      return updatedData;
     }
-    return item;
+    return t;
   });
 
   try {
     saveTemplates(updatedTemplates);
     renderTemplateList();
-    alert("템플릿의 이름과 화면 상태가 성공적으로 수정되었습니다.");
+    alert("템플릿이 성공적으로 수정되었습니다.");
   } catch (error) {
-    alert("수정 내용을 저장하는 중 오류가 발생했습니다. (저장 공간 부족 등)");
+    alert("수정 내용을 저장하는 중 오류가 발생했습니다.");
   }
 }
 
