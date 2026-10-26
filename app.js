@@ -1,3 +1,8 @@
+// ★ 저장 공간 한도 늘리기 (기본 5MB -> 브라우저 최대 허용치)
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist();
+}
+
 const canvas = document.getElementById("preview");
 const ctx = canvas.getContext("2d");
 
@@ -201,7 +206,7 @@ function renderTemplateList() {
   });
 }
 
-// 1. 저장 (Create) - 이미지 압축 및 용량 초과 방어 로직 추가
+// 1. 저장 (Create) - 이미지 압축 및 용량 초과 방어 로직
 saveTemplateBtn.addEventListener("click", () => {
   const name = templateNameInput.value.trim();
   if (!name) return alert("템플릿 이름을 입력해주세요.");
@@ -209,7 +214,7 @@ saveTemplateBtn.addEventListener("click", () => {
 
   const templates = getTemplates();
   
-  // ★ 저장 용량을 줄이기 위해 임시 캔버스를 만들어 최대 800px로 축소 저장
+  // 저장 용량을 줄이기 위해 임시 캔버스를 만들어 최대 800px로 축소 저장
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
   const maxThumbSize = 800; 
@@ -235,7 +240,7 @@ saveTemplateBtn.addEventListener("click", () => {
 
   templates.push(newTemplate);
   
-  // ★ 저장 시도 및 용량 초과 에러 처리
+  // 저장 시도 및 용량 초과 에러 처리
   try {
     saveTemplates(templates);
     templateNameInput.value = ""; 
@@ -244,11 +249,10 @@ saveTemplateBtn.addEventListener("click", () => {
   } catch (error) {
     console.error("저장 실패:", error);
     if (error.name === 'QuotaExceededError' || error.code === 22) {
-      alert("브라우저 저장 공간(5MB)이 부족합니다.\n기존 템플릿을 몇 개 삭제한 후 다시 시도해주세요.");
+      alert("브라우저 저장 공간이 부족합니다.\n기존 템플릿을 몇 개 삭제한 후 다시 시도해주세요.");
     } else {
       alert("템플릿 저장 중 알 수 없는 오류가 발생했습니다.");
     }
-    // 저장에 실패했으므로 메모리에 있던 방금 추가한 템플릿을 다시 빼줍니다.
     templates.pop(); 
   }
 });
