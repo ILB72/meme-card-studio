@@ -76,3 +76,26 @@ main {
   min-height: 18px;
   margin: 0;
 }
+
+/* === T05 AI A 추가: 자유 크기 입력 === */
+.size-controls {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.size-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.size-controls input[type="text"] {
+  width: 90px;
+  padding: 6px;
+}
+.size-controls label.lock {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}

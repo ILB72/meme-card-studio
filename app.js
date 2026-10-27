@@ -19,6 +19,13 @@ const btn4x5 = document.getElementById("btn4x5");
 const btn9x16 = document.getElementById("btn9x16");
 const downloadBtn = document.getElementById("downloadBtn");
 
+// === T05 AI A 추가: 자유 크기 입력 요소 ===
+const widthInput = document.getElementById("widthInput");
+const heightInput = document.getElementById("heightInput");
+const lockRatio = document.getElementById("lockRatio");
+const presetBtns = [btn1x1, btn4x5, btn9x16];
+const MAX_SIZE = 99999;
+
 const templateNameInput = document.getElementById("templateName");
 const saveTemplateBtn = document.getElementById("saveTemplateBtn");
 const templateList = document.getElementById("templateList");
@@ -30,7 +37,10 @@ const state = {
   y: 0.5,
   fontSize: 60,
   color: "#ffffff",
-  ratio: "1:1" 
+  ratio: "1:1",
+  width: 1080,
+  height: 1080,
+  lockRatio: true
 };
 
 // --- 기본 그리기 로직 ---
@@ -131,8 +141,12 @@ colorInput.addEventListener("input", (e) => { state.color = e.target.value; rend
 function changeRatio(width, height, ratioName, activeBtn) {
   canvas.width = width;
   canvas.height = height;
-  state.ratio = ratioName; 
-  [btn1x1, btn4x5, btn9x16].forEach(btn => btn.classList.remove("active"));
+  state.width = width;
+  state.height = height;
+  state.ratio = ratioName;
+  widthInput.value = width;
+  heightInput.value = height;
+  presetBtns.forEach(btn => btn.classList.remove("active"));
   activeBtn.classList.add("active");
   render();
 }
@@ -141,11 +155,68 @@ btn1x1.addEventListener("click", () => changeRatio(1080, 1080, "1:1", btn1x1));
 btn4x5.addEventListener("click", () => changeRatio(1080, 1350, "4:5", btn4x5));
 btn9x16.addEventListener("click", () => changeRatio(1080, 1920, "9:16", btn9x16));
 
+// --- T05 AI A 추가: 자유 크기 입력 ---
+function parseSize(raw) {
+  const s = String(raw).trim();
+  if (!/^\d+$/.test(s)) return { ok: false, msg: "크기는 숫자만 입력해 주세요." };
+  const n = parseInt(s, 10);
+  if (n <= 0) return { ok: false, msg: "크기는 1 이상이어야 합니다." };
+  if (n > MAX_SIZE) return { ok: true, value: MAX_SIZE, clamped: true };
+  return { ok: true, value: n, clamped: false };
+}
+
+function applyCustomSize(w, h) {
+  canvas.width = w;
+  canvas.height = h;
+  state.width = w;
+  state.height = h;
+  state.ratio = "custom";
+  presetBtns.forEach(btn => btn.classList.remove("active"));
+  widthInput.value = w;
+  heightInput.value = h;
+  render();
+}
+
+function handleSizeInput(changed) {
+  const input = changed === "w" ? widthInput : heightInput;
+  const r = parseSize(input.value);
+  if (!r.ok) {
+    errorMsg.textContent = r.msg;
+    input.value = changed === "w" ? state.width : state.height; // 마지막 유효값 복원
+    return;
+  }
+  let note = r.clamped ? `최대 ${MAX_SIZE}로 조정되었습니다.` : "";
+  const ratio = state.height / state.width;
+  let w = state.width, h = state.height;
+  if (changed === "w") {
+    w = r.value;
+    if (state.lockRatio) h = Math.round(w * ratio);
+  } else {
+    h = r.value;
+    if (state.lockRatio) w = Math.round(h / ratio);
+  }
+  const cw = Math.min(MAX_SIZE, Math.max(1, w));
+  const ch = Math.min(MAX_SIZE, Math.max(1, h));
+  if (!note && (cw !== w || ch !== h)) note = `비율 계산 결과가 범위를 벗어나 ${MAX_SIZE}/1로 조정되었습니다.`;
+  errorMsg.textContent = note;
+  applyCustomSize(cw, ch);
+}
+
+widthInput.addEventListener("change", () => handleSizeInput("w"));
+heightInput.addEventListener("change", () => handleSizeInput("h"));
+lockRatio.addEventListener("change", () => { state.lockRatio = lockRatio.checked; });
+
 downloadBtn.addEventListener("click", () => {
-  render(); 
+  render();
   const link = document.createElement("a");
   link.download = "card_image.png";
-  link.href = canvas.toDataURL("image/png");
+  let dataUrl = "";
+  try { dataUrl = canvas.toDataURL("image/png"); } catch (e) { dataUrl = ""; }
+  if (!dataUrl || dataUrl === "data:,") {
+    errorMsg.textContent = "이 크기는 브라우저가 이미지로 만들 수 없습니다. 크기를 줄여 주세요.";
+    return;
+  }
+  link.href = dataUrl;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -176,10 +247,10 @@ function renderTemplateList() {
   templates.forEach(t => {
     const li = document.createElement("li");
     li.style.cssText = "display: flex; flex-direction: column; gap: 8px; background: white; border: 1px solid #ddd; padding: 8px; border-radius: 4px;";
-    
+
     const nameRow = document.createElement("div");
     nameRow.style.cssText = "display: flex; gap: 8px; align-items: center;";
-    
+
     const nameSpan = document.createElement("span");
     nameSpan.textContent = t.name;
     nameSpan.style.cssText = "font-size: 14px; font-weight: bold; flex: 1; word-break: break-all;";
@@ -206,7 +277,7 @@ function renderTemplateList() {
     btnGroup.appendChild(loadBtn);
     btnGroup.appendChild(editBtn);
     btnGroup.appendChild(delBtn);
-    
+
     li.appendChild(nameRow);
     li.appendChild(btnGroup);
     templateList.appendChild(li);
@@ -220,16 +291,16 @@ saveTemplateBtn.addEventListener("click", () => {
   if (!state.image) return alert("이미지를 먼저 불러와주세요.");
 
   const templates = getTemplates();
-  
+
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
-  const maxThumbSize = 800; 
+  const maxThumbSize = 800;
   const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
   tempCanvas.width = state.image.width * scale;
   tempCanvas.height = state.image.height * scale;
   tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
-  
-  const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7); 
+
+  const imageDataURL = tempCanvas.toDataURL("image/jpeg", 0.7);
 
   const newTemplate = {
     id: crypto.randomUUID(),
@@ -240,20 +311,22 @@ saveTemplateBtn.addEventListener("click", () => {
     y: state.y,
     fontSize: state.fontSize,
     color: state.color,
-    ratio: state.ratio
+    ratio: state.ratio,
+    width: state.width,
+    height: state.height
   };
 
   templates.push(newTemplate);
-  
+
   try {
     saveTemplates(templates);
-    templateNameInput.value = ""; 
-    renderTemplateList(); 
+    templateNameInput.value = "";
+    renderTemplateList();
     alert("템플릿이 저장되었습니다.");
   } catch (error) {
     console.error("저장 실패:", error);
     alert("저장 공간이 부족합니다.");
-    templates.pop(); 
+    templates.pop();
   }
 });
 
@@ -279,6 +352,10 @@ function loadTemplate(id) {
   if (t.ratio === "1:1") changeRatio(1080, 1080, "1:1", btn1x1);
   else if (t.ratio === "4:5") changeRatio(1080, 1350, "4:5", btn4x5);
   else if (t.ratio === "9:16") changeRatio(1080, 1920, "9:16", btn9x16);
+  else if (t.ratio === "custom" && Number.isInteger(t.width) && Number.isInteger(t.height)
+           && t.width > 0 && t.height > 0) {
+    applyCustomSize(Math.min(t.width, MAX_SIZE), Math.min(t.height, MAX_SIZE));
+  }
 
   const img = new Image();
   img.onload = () => {
@@ -301,7 +378,7 @@ function startInlineEdit(id, nameRow, btnGroup, currentName) {
   const saveBtn = document.createElement("button");
   saveBtn.textContent = "저장";
   saveBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px;";
-  
+
   const cancelBtn = document.createElement("button");
   cancelBtn.textContent = "취소";
   cancelBtn.style.cssText = "padding: 4px 8px; font-size: 12px; cursor: pointer; background: #ccc; color: #333; border: none; border-radius: 4px;";
@@ -313,9 +390,9 @@ function startInlineEdit(id, nameRow, btnGroup, currentName) {
   saveBtn.onclick = () => {
     const newName = input.value.trim();
     if (!newName) return alert("이름을 입력해주세요.");
-    
+
     const overwrite = confirm("이름을 변경합니다. 현재 화면의 상태(이미지, 글씨, 위치)도 이 템플릿에 덮어쓰시겠습니까?\n(취소를 누르면 이름만 변경됩니다.)");
-    
+
     updateTemplateData(id, newName, overwrite);
   };
 
@@ -327,20 +404,20 @@ function startInlineEdit(id, nameRow, btnGroup, currentName) {
 // 4. 실제 데이터 저장 (수정 완료)
 function updateTemplateData(id, newName, overwriteState) {
   let templates = getTemplates();
-  
+
   let updatedTemplates = templates.map(t => {
     if (t.id === id) {
       let updatedData = { ...t, name: newName };
-      
+
       if (overwriteState && state.image) {
         const tempCanvas = document.createElement("canvas");
         const tempCtx = tempCanvas.getContext("2d");
-        const maxThumbSize = 800; 
+        const maxThumbSize = 800;
         const scale = Math.min(maxThumbSize / state.image.width, maxThumbSize / state.image.height);
         tempCanvas.width = state.image.width * scale;
         tempCanvas.height = state.image.height * scale;
         tempCtx.drawImage(state.image, 0, 0, tempCanvas.width, tempCanvas.height);
-        
+
         updatedData.image = tempCanvas.toDataURL("image/jpeg", 0.7);
         updatedData.text = state.text;
         updatedData.x = state.x;
@@ -348,6 +425,8 @@ function updateTemplateData(id, newName, overwriteState) {
         updatedData.fontSize = state.fontSize;
         updatedData.color = state.color;
         updatedData.ratio = state.ratio;
+        updatedData.width = state.width;
+        updatedData.height = state.height;
       }
       return updatedData;
     }
@@ -366,10 +445,10 @@ function updateTemplateData(id, newName, overwriteState) {
 // 5. 삭제 (Delete)
 function deleteTemplate(id) {
   if (!confirm("정말 이 템플릿을 삭제하시겠습니까?")) return;
-  
+
   let templates = getTemplates();
   templates = templates.filter(t => t.id !== id);
-  
+
   try {
     saveTemplates(templates);
     renderTemplateList();
@@ -387,20 +466,20 @@ document.getElementById("exportJsonBtn").addEventListener("click", () => {
   if (templates.length === 0) {
     return alert("내보낼 템플릿이 없습니다. 먼저 템플릿을 저장해주세요.");
   }
-  
+
   const jsonStr = JSON.stringify(templates, null, 2);
   const blob = new Blob([jsonStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  
+
   const link = document.createElement("a");
   link.href = url;
   link.download = "templates_backup.json";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   URL.revokeObjectURL(url);
-  
+
   alert("JSON 파일 다운로드를 시작합니다. (다운로드 폴더 확인)");
 });
 
@@ -415,14 +494,14 @@ document.getElementById("importJsonBtn").addEventListener("click", () => {
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target.result);
-        
+
         if (!Array.isArray(imported)) throw new Error("배열 형식이 아닙니다.");
         imported.forEach(t => {
           if (!t.name || t.text === undefined || !t.image) {
             throw new Error("필수 항목(name, text, image)이 누락되었습니다.");
           }
         });
-        
+
         const current = getTemplates();
         const merged = [...current, ...imported];
         saveTemplates(merged);
