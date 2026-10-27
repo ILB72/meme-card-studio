@@ -17,13 +17,16 @@ const colorInput = document.getElementById("colorInput");
 const btn1x1 = document.getElementById("btn1x1");
 const btn4x5 = document.getElementById("btn4x5");
 const btn9x16 = document.getElementById("btn9x16");
+const btn16x9 = document.getElementById("btn16x9");
+const btn21x9 = document.getElementById("btn21x9");
 const downloadBtn = document.getElementById("downloadBtn");
 
 // === T05 AI A 추가: 자유 크기 입력 요소 ===
 const widthInput = document.getElementById("widthInput");
 const heightInput = document.getElementById("heightInput");
 const lockRatio = document.getElementById("lockRatio");
-const presetBtns = [btn1x1, btn4x5, btn9x16];
+// === T05 AI B 반영: 프리셋 5개로 확장 ===
+const presetBtns = [btn1x1, btn4x5, btn9x16, btn16x9, btn21x9];
 const MAX_SIZE = 99999;
 
 const templateNameInput = document.getElementById("templateName");
@@ -154,6 +157,9 @@ function changeRatio(width, height, ratioName, activeBtn) {
 btn1x1.addEventListener("click", () => changeRatio(1080, 1080, "1:1", btn1x1));
 btn4x5.addEventListener("click", () => changeRatio(1080, 1350, "4:5", btn4x5));
 btn9x16.addEventListener("click", () => changeRatio(1080, 1920, "9:16", btn9x16));
+// === T05 AI B 반영: 16:9 / 21:9 프리셋 ===
+btn16x9.addEventListener("click", () => changeRatio(1920, 1080, "16:9", btn16x9));
+btn21x9.addEventListener("click", () => changeRatio(2560, 1080, "21:9", btn21x9));
 
 // --- T05 AI A 추가: 자유 크기 입력 ---
 function parseSize(raw) {
@@ -182,7 +188,7 @@ function handleSizeInput(changed) {
   const r = parseSize(input.value);
   if (!r.ok) {
     errorMsg.textContent = r.msg;
-    input.value = changed === "w" ? state.width : state.height; // 마지막 유효값 복원
+    input.value = changed === "w" ? state.width : state.height;
     return;
   }
   let note = r.clamped ? `최대 ${MAX_SIZE}로 조정되었습니다.` : "";
@@ -352,6 +358,9 @@ function loadTemplate(id) {
   if (t.ratio === "1:1") changeRatio(1080, 1080, "1:1", btn1x1);
   else if (t.ratio === "4:5") changeRatio(1080, 1350, "4:5", btn4x5);
   else if (t.ratio === "9:16") changeRatio(1080, 1920, "9:16", btn9x16);
+  // === T05 AI B 반영: 16:9 / 21:9 분기 ===
+  else if (t.ratio === "16:9") changeRatio(1920, 1080, "16:9", btn16x9);
+  else if (t.ratio === "21:9") changeRatio(2560, 1080, "21:9", btn21x9);
   else if (t.ratio === "custom" && Number.isInteger(t.width) && Number.isInteger(t.height)
            && t.width > 0 && t.height > 0) {
     applyCustomSize(Math.min(t.width, MAX_SIZE), Math.min(t.height, MAX_SIZE));
