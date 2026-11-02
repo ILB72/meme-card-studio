@@ -27,6 +27,7 @@ const btn9x16 = document.getElementById("btn9x16");
 const btn16x9 = document.getElementById("btn16x9");
 const btn21x9 = document.getElementById("btn21x9");
 const downloadBtn = document.getElementById("downloadBtn");
+const resetBtn = document.getElementById("resetBtn");
 const emptyOverlay = document.getElementById("emptyOverlay");
 
 const widthInput = document.getElementById("widthInput");
@@ -256,6 +257,29 @@ function handleSizeInput(changed) {
 widthInput.addEventListener("change", () => handleSizeInput("w"));
 heightInput.addEventListener("change", () => handleSizeInput("h"));
 lockRatio.addEventListener("change", () => { state.lockRatio = lockRatio.checked; });
+
+// --- 초기화 ---
+resetBtn.addEventListener("click", () => {
+  if (!confirm("작업 중인 내용을 모두 지우고 초기화하시겠습니까?")) return;
+
+  state.image = null;
+  state.text = "안녕하세요";
+  state.x = 0.5;
+  state.y = 0.5;
+  state.fontSize = 60;
+  state.color = "#ffffff";
+
+  textInput.value = state.text;
+  xInput.value = state.x;
+  yInput.value = state.y;
+  sizeInput.value = state.fontSize;
+  colorInput.value = state.color;
+  fileInput.value = "";
+  fileName.textContent = "선택된 파일 없음";
+  errorMsg.textContent = "";
+
+  changeRatio(1080, 1080, "1:1", btn1x1);
+});
 
 // --- 다운로드 ---
 downloadBtn.addEventListener("click", () => {
