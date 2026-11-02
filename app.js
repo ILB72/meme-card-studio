@@ -567,6 +567,37 @@ document.getElementById("importJsonBtn").addEventListener("click", () => {
   input.click();
 });
 
+// ==========================================
+// ★ 드래그 앤 드롭 기능 추가
+// ==========================================
+const dropZone = document.querySelector(".canvas-wrap");
+
+// 브라우저가 파일을 열어버리는 기본 동작 방지
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.style.opacity = "0.7"; // 드래그 중 시각적 피드백
+});
+
+dropZone.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  dropZone.style.opacity = "1";
+});
+
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.style.opacity = "1";
+
+  // 드롭된 파일 가져오기
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+
+  // 기존 파일 업로드 로직 재사용 (가짜 change 이벤트 발생)
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  fileInput.files = dataTransfer.files;
+  fileInput.dispatchEvent(new Event("change"));
+});
+
 // 초기화
 render();
 renderTemplateList();
