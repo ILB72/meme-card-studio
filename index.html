@@ -7,55 +7,118 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>짤·카드 스튜디오</h1>
+  <header class="app-header">
+    <h1>짤·카드 스튜디오</h1>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button id="tabEdit" class="tab active" role="tab" aria-selected="true">🎨 편집</button>
+    <button id="tabTemplates" class="tab" role="tab" aria-selected="false">📁 템플릿 관리</button>
+  </nav>
+
   <main>
-    <div class="canvas-area">
-      <div class="ratio-buttons">
-        <button id="btn1x1" class="active">1:1</button>
-        <button id="btn4x5">4:5</button>
-        <button id="btn9x16">9:16</button>
+    <!-- ===== 편집 탭 ===== -->
+    <div id="editPanel" class="tab-panel active">
+      <div class="workflow-steps">
+        <span class="step">① 비율 선택</span>
+        <span class="step-arrow">›</span>
+        <span class="step">② 이미지 업로드</span>
+        <span class="step-arrow">›</span>
+        <span class="step">③ 문구·위치 조정</span>
+        <span class="step-arrow">›</span>
+        <span class="step">④ 다운로드</span>
       </div>
-      
-      <canvas id="preview" width="1080" height="1080"></canvas>
-      
-      <button id="downloadBtn">이미지 다운로드 (PNG)</button>
+
+      <div class="edit-layout">
+        <!-- 좌측: 캔버스 영역 -->
+        <section class="canvas-area card">
+          <h2 class="section-title">미리보기</h2>
+          
+          <div class="ratio-buttons">
+            <button id="btn1x1" class="active">1:1</button>
+            <button id="btn4x5">4:5</button>
+            <button id="btn9x16">9:16</button>
+            <button id="btn16x9">16:9</button>
+            <button id="btn21x9">21:9</button>
+          </div>
+
+          <div class="size-controls">
+            <label>너비 <input type="text" id="widthInput" inputmode="numeric" value="1080"></label>
+            <label>높이 <input type="text" id="heightInput" inputmode="numeric" value="1080"></label>
+            <label class="lock"><input type="checkbox" id="lockRatio" checked> 비율 유지</label>
+          </div>
+
+          <div class="canvas-wrap">
+            <canvas id="preview" width="1080" height="1080"></canvas>
+            <div id="emptyOverlay" class="empty-overlay">
+              <div class="empty-icon">🖼️</div>
+              <p>이미지를 올리거나<br>여기에 끌어다 놓으세요</p>
+            </div>
+          </div>
+
+          <button id="downloadBtn" class="btn-download" disabled title="이미지를 먼저 업로드하세요">이미지 다운로드 (PNG)</button>
+        </section>
+
+        <!-- 우측: 편집 옵션 패널 -->
+        <section class="panel card">
+          <h2 class="section-title">편집 옵션</h2>
+
+          <div class="control-group">
+            <label class="file-label">
+              <span class="btn-outline">이미지 선택</span>
+              <input type="file" id="fileInput" accept="image/png, image/jpeg" class="hidden-file">
+            </label>
+            <p class="file-name" id="fileName">선택된 파일 없음</p>
+            <p class="error" id="errorMsg"></p>
+          </div>
+
+          <div class="control-group">
+            <label>문구
+              <textarea id="textInput" rows="3">안녕하세요</textarea>
+            </label>
+          </div>
+
+          <details class="advanced">
+            <summary>고급 설정 (위치·세부 조정)</summary>
+            <div class="advanced-content">
+              <label>X 위치 <input type="range" id="xInput" min="0" max="1" step="0.01" value="0.5"> <span class="val" id="xVal">0.50</span></label>
+              <label>Y 위치 <input type="range" id="yInput" min="0" max="1" step="0.01" value="0.5"> <span class="val" id="yVal">0.50</span></label>
+              <label>글자 크기 <input type="range" id="sizeInput" min="10" max="200" value="60"> <span class="val" id="sizeVal">60</span></label>
+            </div>
+          </details>
+
+          <div class="control-group">
+            <label>글자 색
+              <div class="color-row">
+                <input type="color" id="colorInput" value="#ffffff">
+                <span id="colorSwatch" class="swatch" style="background:#ffffff"></span>
+              </div>
+            </label>
+          </div>
+        </section>
+      </div>
     </div>
 
-    <section class="panel">
-      <label>이미지 불러오기 (PNG / JPEG)
-        <input type="file" id="fileInput" accept="image/png, image/jpeg">
-      </label>
-      <p class="error" id="errorMsg"></p>
+    <!-- ===== 템플릿 관리 탭 ===== -->
+    <div id="templatePanel" class="tab-panel">
+      <section class="card template-card">
+        <h2 class="section-title">템플릿 관리</h2>
 
-      <label>문구
-        <textarea id="textInput" rows="3">안녕하세요</textarea>
-      </label>
+        <div class="template-save-row">
+          <input type="text" id="templateName" placeholder="템플릿 이름을 입력하세요">
+          <button id="saveTemplateBtn" class="btn-primary">저장</button>
+        </div>
 
-      <label>X 위치 <input type="range" id="xInput" min="0" max="1" step="0.01" value="0.5"></label>
-      <label>Y 위치 <input type="range" id="yInput" min="0" max="1" step="0.01" value="0.5"></label>
-      <label>글자 크기 <input type="range" id="sizeInput" min="10" max="200" value="60"></label>
-      <label>글자 색 <input type="color" id="colorInput" value="#ffffff"></label>
+        <ul id="templateList" class="template-list"></ul>
 
-      <!-- 템플릿 관리 영역 -->
-      <hr style="width: 100%; border: 1px solid #ddd; margin: 16px 0;">
-      <h3 style="margin: 0; font-size: 16px;">템플릿 관리</h3>
-      
-      <div style="display: flex; gap: 8px;">
-        <input type="text" id="templateName" placeholder="템플릿 이름" style="flex: 1; padding: 6px;">
-        <button id="saveTemplateBtn" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">저장</button>
-      </div>
-      
-      <ul id="templateList" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
-        <!-- 저장된 템플릿 목록이 여기에 동적으로 추가됩니다 -->
-      </ul>
-
-      <!-- JSON 내보내기/가져오기 영역 추가 -->
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button id="exportJsonBtn" style="flex: 1; padding: 8px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 4px;">JSON 내보내기</button>
-        <button id="importJsonBtn" style="flex: 1; padding: 8px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 4px;">JSON 가져오기</button>
-      </div>
-    </section>
+        <div class="json-row">
+          <button id="exportJsonBtn" class="btn-secondary">JSON 내보내기</button>
+          <button id="importJsonBtn" class="btn-secondary">JSON 가져오기</button>
+        </div>
+      </section>
+    </div>
   </main>
+
   <script src="app.js"></script>
 </body>
 </html>
